@@ -277,7 +277,84 @@ d ; like (t-posn 1 2)
 
 ; https://docs.racket-lang.org/guide/define-struct.html#(part._.Structure_.Type_.Generativity)
 
-; Skipped ahead a bit because I was curious
+; a previously fabricated struct is a transparent struct
+; that can be printed and understood by the expression reader
+
+#s(sprout bean)
+
+#s(sprout alfalfa)
+
+(struct sprout (kind) #:prefab)
+
+(sprout 'bean) ; behaves just like #s(sprout bean)
+
+(sprout? #s(sprout bean)) ; #t
+(sprout? #s(sprout bean big)) ; #f
+
+(struct dot (x y) #:mutable)
+(define f (dot 1 2))
+(set-dot-x! f 11)
+(dot-x f) ; mutated
+
+; Hmm, this is kind of weird and I don't think I full understand it
+; Maybe you would want a computed value based on your inputs?
+; also can only have one #:auto-value I guess?
+(struct a-posn (x [y #:auto] [z #:auto]) #:transparent #:auto-value 0)
+(a-posn 1)
+
+(struct thing (name)
+  #:transparent
+  #:guard (lambda (name type-name)
+            (cond
+              [(string? name) name]
+              [(symbol? name) (symbol->string name)]
+              [else (error type-name "bad name: ~e" name)])))
+(thing "apple")
+(thing 'apple)
+; (thing 1/2) ; would fail
+; guards are still called on subtype instances!
+
+; Looks like you can have multiple #:methods
+; The compiler will also complain if you didn't actually implement the things it needs
+(struct cake (candles)
+  #:methods gen:custom-write ; generic interface to be used with display
+  [(define (write-proc cake port mode)
+     (define n (cake-candles cake))
+     (show "   ~a   ~n" n #\. port)
+     (show " .-~a-. ~n" n #\| port)
+     (show " | ~a | ~n" n #\space port)
+     (show "---~a---~n" n #\- port))
+   (define (show fmt n ch port)
+     (fprintf port fmt (make-string n ch)))])
+
+(display (cake 5))
+
+(struct greeter (name)
+  #:property prop:procedure
+  (lambda (self other) (string-append "Hi " other ", I'm " (greeter-name self))))
+(define joe-greeter (greeter "Joe"))
+(joe-greeter "Mary") ; like a friend function
+
+; pass a super-type to this function, e.g. struct:posn
+; to get a new struct called raven which requires the two arguments
+; of posn to build it
+(define (raven-constructor super-type)
+  (struct raven ()
+    #:super super-type
+    #:transparent
+    #:property prop:procedure
+    (lambda (self) 'nevermore))
+  raven)
+(let ([r ((raven-constructor struct:t-posn) 1 2)])
+  (list r ; here, we are using r the struct. Just get the transparent view
+        (r) ; here we are calling r as a procedure, i.e. 'nevermore
+        ))
+
+; https://docs.racket-lang.org/guide/modules.html
+
+'next
+
+; https://docs.racket-lang.org/guide/contracts.html
 ; https://docs.racket-lang.org/guide/contract-boundaries.html
 
 (define positive-number (and/c number? positive?))

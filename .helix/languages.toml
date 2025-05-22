@@ -1,0 +1,15 @@
+# in <config_dir>/helix/languages.toml
+
+[language-server.racket-langserver]
+command = "racket"
+args = ["-l", "racket-langserver"]
+
+[[language]]
+name = "racket"
+auto-format = true
+formatter = { command = 'raco', args = ["fmt"] }
+language-servers = [ "racket-langserver" ]
+[language.auto-pairs]
+'(' = ')'
+'[' = ']'
+'"' = '"'

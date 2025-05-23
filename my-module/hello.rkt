@@ -1,6 +1,5 @@
-#lang racket
+(module hello racket
+  (provide hello)
 
-(provide hello)
-
-(define (hello)
-  "hello")
+  (define (hello)
+    "hello"))

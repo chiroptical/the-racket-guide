@@ -68,3 +68,56 @@ tiger
   (check-= (drop 10) 490 ε))
 
 ; https://docs.racket-lang.org/guide/module-paths.html
+
+; In the REPL, you can using 'module to indicate a module you have
+; created in the REPL
+
+(module m (lib "racket")
+  (provide tastes-great?
+           less-filling?)
+  (define tastes-great? #t)
+  (define less-filling? #t))
+(require (only-in 'm tastes-great?))
+tastes-great?
+; less-filling? ; not imported because only-in
+; except-in will hide certain exports
+; rename-in allows you to re-name imports
+; prefix-in allows you to adjust all imports with a prefix
+
+; for exports, you have things like
+; rename-out
+; struct-out for exporting structs and their bindings
+; all-defined-out, generally discouraged byt useful sometimes
+; all-from-out to re-export from module
+; except-out
+; prefix-out
+
+(module x racket
+  (provide counter
+           increment!)
+  (define counter 0)
+  (define (increment!)
+    (set! counter (add1 counter))))
+(require 'x)
+(increment!)
+counter
+; (set! counter -1) ; not allowed to set! variables
+; from an import finding. Helps modular reasoning of variables
+
+; modules can bring in new syntactic forms
+(module noisy racket
+  (provide define-noisy)
+
+  (define-syntax-rule (define-noisy (id arg ...) body)
+    (define (id arg ...)
+      (show-arguments 'id (list arg ...))
+      body))
+
+  (define (show-arguments name args)
+    (printf "calling ~s with arguments ~e~n" name args)))
+(require 'noisy)
+(define-noisy (f x y) (+ x y))
+(f 1 2)
+
+; LOOKUP: Not entirely sure this is important now, but could be useful later
+; https://docs.racket-lang.org/guide/protect-out.html

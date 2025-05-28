@@ -1,0 +1,9 @@
+[[snippets]]
+prefix = "lambda"
+body = 'λ'
+description = "The lambda"
+
+[[snippets]]
+prefix = "diamond"
+body = '♢'
+description = "The diamond"

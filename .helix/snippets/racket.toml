@@ -5,5 +5,5 @@ description = "The lambda"
 
 [[snippets]]
 prefix = "diamond"
-body = '♢'
+body = '◊'
 description = "The diamond"

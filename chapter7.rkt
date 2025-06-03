@@ -135,3 +135,89 @@
 
 ; https://docs.racket-lang.org/guide/contracts-general-functions.html
 ; 7.3.7 is mega confusing...
+
+; I know nothing about interfaces at this point, but apparently
+; this compiles
+(define area-container-window<%> (interface ()))
+
+; the function accepts a single argument 'parent'
+; the domain must be an object matching the interface 'area-container-window<%>'
+; the range contract only changes the children of parent
+; the expression following `_` will run when the contract is called
+; instead of when it returns! i.e. `get-children` is run before the function returns
+; the result is passed into the lambda as `child` and we check that the old children
+; plus the new child is the same as the current children.
+(->i ([parent (is-a?/c area-container-window<%>)])
+     [_
+      (parent)
+      (let ([old-children (send parent get-children)])
+        (λ (child) (andmap eq? (append old-children (list child)) (send parent get-children))))])
+
+(define (split l)
+  (define (split l w)
+    (cond
+      [(null? l) (values (list->string (reverse w)) '())]
+      [(char=? #\newline (car l)) (values (list->string (reverse w)) (cdr l))]
+      [else (split (cdr l) (cons (car l) w))]))
+  (split l '()))
+
+(provide (contract-out [split (-> (listof char?) (values string? (listof char?)))]))
+
+; note: a string is an array by default, but you can convert it to a charlist
+(split (string->list "hello\nworld"))
+
+(define (substring-of? s)
+  (flat-named-contract (format "substring of ~s" s)
+                       (lambda (s2)
+                         (and (string? s2)
+                              (<= (string-length s2) (string-length s))
+                              (equal? (substring s 0 (string-length s2)) s2)))))
+
+(define (split/1 l)
+  (define (split/1 l w)
+    (cond
+      [(null? l) (values (list->string (reverse w)) '())]
+      [(char=? #\newline (car l)) (values (list->string (reverse w)) (cdr l))]
+      [else (split/1 (cdr l) (cons (car l) w))]))
+  (split/1 l '()))
+
+; (provide (contract-out [split/1
+;                         (->i ([fl (listof char?)])
+;                              (values [s (fl) (substring-of? (list->string fl))]
+;                                      [c (fl) (substring-of? (list->string fl))]))]))
+
+(provide (contract-out [split/1
+                        (->i ([fl (listof char?)])
+                             (values [s
+                                      (fl)
+                                      ; string-len/c requires the length to be less
+                                      ; than this. So, if the charlist doesn't contain
+                                      ; a newline it will return 'fl' i.e. you need
+                                      ; to add 1 otherwise the contract would fail
+                                      ; if you gave (string->list "hello")
+                                      (string-len/c (+ 1 (length fl)))]
+                                     [c (listof char?)]))]))
+
+(split/1 (string->list "hello\nworld"))
+
+(define (n-step proc inits)
+  (let ([inc (apply proc inits)])
+    (when inc
+      (n-step proc (map (λ (x) (+ x inc)) inits)))))
+
+(define (i x)
+  (printf "~s\n" x)
+  (if (= x 0) #f -1))
+(n-step i '(2))
+
+(provide (contract-out [n-step
+                        (->i ([proc
+                               (inits)
+                               (and/c (unconstrained-domain-> (or/c #f number?))
+                                      (λ (f) (procedure-arity-includes? f (length inits))))]
+                              [inits (listof number?)])
+                             ()
+                             any)]))
+
+; Need to think about this unconstrained-domain-> this more carefully
+; https://docs.racket-lang.org/guide/contracts-general-functions.html#(part._contracts-no-domain)

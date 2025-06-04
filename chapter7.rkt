@@ -210,6 +210,13 @@
   (if (= x 0) #f -1))
 (n-step i '(2))
 
+(define (j x y)
+  (define z (+ x y))
+  (printf "~s\n" (list x y z))
+  (if (= z 0) #f -1))
+
+(n-step j '(1 1))
+
 (provide (contract-out [n-step
                         (->i ([proc
                                (inits)
@@ -219,5 +226,8 @@
                              ()
                              any)]))
 
-; Need to think about this unconstrained-domain-> this more carefully
-; https://docs.racket-lang.org/guide/contracts-general-functions.html#(part._contracts-no-domain)
+; LOOKUP: why [proc (inits) (...)]? Why is `inits` bound but not proc?
+; LOOKUP: how would I make an unconstrained-domain-> version of a function
+;         which accepts a number greater than 2 and adds 1 to it.
+
+; https://docs.racket-lang.org/guide/contracts-first.html

@@ -226,8 +226,18 @@
                              ()
                              any)]))
 
-; LOOKUP: why [proc (inits) (...)]? Why is `inits` bound but not proc?
-; LOOKUP: how would I make an unconstrained-domain-> version of a function
-;         which accepts a number greater than 2 and adds 1 to it.
+(define (increase f x y)
+  (f x y))
+
+(provide (contract-out
+          [increase
+           (->i ;[f (and/c (unconstrained-domain-> number?) (λ (f) (procedure-arity-includes? f 2)))] ; this effectively codes the same contract, but uses unconstrained-domain->
+            ([f (-> number? number? number?)] [x number?] [y number?])
+            ()
+            (lambda (x y) (>/c (+ x y))))]))
+
+(increase (lambda (x y) (* 2 x y)) 1 2) ; would work
+
+(increase (lambda (x y) (* x y)) 1 2) ; wouldn't work
 
 ; https://docs.racket-lang.org/guide/contracts-first.html

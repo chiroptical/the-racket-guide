@@ -15,7 +15,7 @@ Notes
 Editor and snippets
 ---
 
-To get the editor and formatting in `./.helix/languages.toml` working,
+To get the editor and formatting in [languages.toml](./.helix/languages.toml) working,
 
 ```shell
 $ raco pkg install racket-langserver
@@ -27,7 +27,7 @@ Libraries
 
 ## Qi - An Embeddable Flow-Oriented Language
 
-[The website][qi], installation, see [this file][./library-qi.rkt] for examples.
+[The website][qi], installation, see [library-qi.rkt](./library-qi.rkt) for examples.
 
 ```shell
 $ raco pkg install qi

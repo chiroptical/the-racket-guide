@@ -1,9 +1,30 @@
 [[snippets]]
 prefix = "lambda"
 body = 'λ'
-description = "The lambda"
+description = "The lambda unicode"
 
 [[snippets]]
 prefix = "diamond"
 body = '◊'
-description = "The diamond"
+description = "The diamond unicode"
+
+[[snippets]]
+prefix = "yinyang"
+body = '☯'
+description = "The yin and yang unicode"
+
+[[snippets]]
+prefix = "triangle"
+body = '△'
+description = "The triangle unicode"
+
+[[snippets]]
+prefix = "triangle-down"
+body = '▽'
+description = "The down triangle unicode"
+
+[[snippets]]
+prefix = "ground"
+body = '⏚'
+description = "The ground unicode"
+

@@ -7,7 +7,7 @@ args = ["-l", "racket-langserver"]
 [[language]]
 name = "racket"
 auto-format = true
-formatter = { command = 'raco', args = ["fmt"] }
+formatter = { command = 'raco', args = ["fmt", "--width", "80"] }
 language-servers = [ "racket-langserver", "scls" ]
 [language.auto-pairs]
 '(' = ')'

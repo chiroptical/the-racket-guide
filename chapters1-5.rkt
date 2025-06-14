@@ -121,7 +121,9 @@
 (lambda (num . nums) (apply max (map magnitude (cons num nums))))
 
 ; this version takes one argument and an optional one
-(define greet (lambda (given [surname "Smith"]) (string-append "Hello, " given " " surname)))
+(define greet
+  (lambda (given [surname "Smith"])
+    (string-append "Hello, " given " " surname)))
 
 (greet "barry")
 (greet "barry" "moo")
@@ -267,13 +269,15 @@ d ; like (t-posn 1 2)
 (struct ex-posn (x y)
   #:methods gen:equal+hash
   [(define (equal-proc a b equal?-recur)
-     (and (equal?-recur (ex-posn-x a) (ex-posn-x b)) (equal?-recur (ex-posn-y a) (ex-posn-y b))))
+     (and (equal?-recur (ex-posn-x a) (ex-posn-x b))
+          (equal?-recur (ex-posn-y a) (ex-posn-y b))))
    (define (hash-proc a hash-recur)
      (+ (hash-recur (ex-posn-x a)) (* 3 (hash-recur (ex-posn-y a)))))
    (define (hash2-proc a hash2-recur)
      (+ (hash2-recur (ex-posn-x a)) (* 3 (hash2-recur (ex-posn-y a)))))])
 
-(equal? (ex-posn 1 2) (ex-posn 1 2)) ; #t, i.e. we recover the transparent behavior
+(equal? (ex-posn 1 2)
+        (ex-posn 1 2)) ; #t, i.e. we recover the transparent behavior
 
 ; https://docs.racket-lang.org/guide/define-struct.html#(part._.Structure_.Type_.Generativity)
 
@@ -331,7 +335,8 @@ d ; like (t-posn 1 2)
 
 (struct greeter (name)
   #:property prop:procedure
-  (lambda (self other) (string-append "Hi " other ", I'm " (greeter-name self))))
+  (lambda (self other)
+    (string-append "Hi " other ", I'm " (greeter-name self))))
 (define joe-greeter (greeter "Joe"))
 (joe-greeter "Mary") ; like a friend function
 

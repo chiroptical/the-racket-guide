@@ -14,15 +14,18 @@
 
 (define-flow match-fizzbuzz (~> (-< match-fizz match-buzz) &))
 
-(define-flow
- fizzbuzz
- (>< (switch [match-fizzbuzz "fizzbuzz"] [match-fizz "fizz"] [match-buzz "buzz"] [else ~v])))
+(define-flow fizzbuzz
+             (>< (switch [match-fizzbuzz "fizzbuzz"]
+                         [match-fizz "fizz"]
+                         [match-buzz "buzz"]
+                         [else ~v])))
 
 (fizzbuzz 15 30 31)
 
 (define-flow fizzbuzz-list
              (~> △
-                 (>< (switch [match-fizz (switch [match-buzz "fizzbuzz"] [else "fizz"])]
+                 (>< (switch [match-fizz
+                              (switch [match-buzz "fizzbuzz"] [else "fizz"])]
                              [match-buzz "buzz"]
                              [else ~v]))))
 (fizzbuzz-list (build-list 100 (λ (x) (+ x 1))))

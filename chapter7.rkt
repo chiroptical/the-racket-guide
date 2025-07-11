@@ -246,4 +246,24 @@
 
 (increase (lambda (x y) (* x y)) 1 2) ; wouldn't work
 
-; https://docs.racket-lang.org/guide/contracts-first.html
+; Section 7.4
+
+;; TODO: Could be nice to implement this such that you don't have to re-compute
+;; (f acc) each time
+(define (my-argmax f lov)
+  (match lov
+    ['() (error "...")]
+    [(cons hd tl) (foldr (λ (acc x) (if (> (f acc) (f x)) acc x)) hd tl)]))
+
+(my-argmax identity '(1 2 4 4 3))
+
+(provide (contract-out [my-argmax
+                        (-> (-> any/c
+                                ; number? is not comparable with <
+                                ; LOOKUP: why?
+                                real?)
+                            ; This embodies non-empty list
+                            (and/c pair? list?)
+                            any/c)]))
+
+; check out version 2 iteration next! https://docs.racket-lang.org/guide/contracts-first.html

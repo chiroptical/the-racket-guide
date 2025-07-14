@@ -257,13 +257,89 @@
 
 (my-argmax identity '(1 2 4 4 3))
 
-(provide (contract-out [my-argmax
-                        (-> (-> any/c
-                                ; number? is not comparable with <
-                                ; LOOKUP: why?
-                                real?)
-                            ; This embodies non-empty list
-                            (and/c pair? list?)
-                            any/c)]))
+; version 1
+; (provide (contract-out [my-argmax
+;                         (-> (-> any/c
+;                                 ; number? is not comparable with <
+;                                 ; LOOKUP: why?
+;                                 real?)
+;                             ; This embodies non-empty list
+;                             (and/c pair? list?)
+;                             any/c)]))
 
-; check out version 2 iteration next! https://docs.racket-lang.org/guide/contracts-first.html
+; version 2
+; (provide (contract-out [my-argmax
+;                         (->i ([f (-> any/c real?)] [lov (and/c pair? list?)])
+;                              ()
+;                              (r (f lov)
+;                                 (λ (r)
+;                                   (define f@r (f r))
+;                                   (for/and ([v lov])
+;                                     (>= f@r (f v))))))]))
+
+; version 2, rev a.
+; memq is like pointer equality ; This contract says, the maximum is one of the
+; elements and it is greater than or equal to all elements
+; (provide (contract-out [my-argmax
+;                         (->i ([f (-> any/c real?)] [lov (and/c pair? list?)])
+;                              ()
+;                              (r (f lov)
+;                                 (lambda (r)
+;                                   (define f@r (f r))
+;                                   (and (memq r lov)
+;                                        (for/and ([v lov])
+;                                          (>= f@r (f v)))))))]))
+
+; version 3
+; the output 'r' is greater than or equal to the other elements
+; additionally, the first element which equals 'v' is 'r'.
+; I think this eq? should be memq?
+; (provide (contract-out
+;           [my-argmax
+;            (->i ([f (-> any/c real?)] [lov (and/c pair? list?)])
+;                 ()
+;                 (r (f lov)
+;                    (lambda (r)
+;                      (define f@r (f r))
+;                      (and (for/and ([v lov])
+;                             (>= f@r (f v)))
+;                           (eq? (first (memf (lambda (v) (= (f v) f@r)) lov))
+;                                r)))))]))
+
+; the book breaks this up into smaller components, i.e.
+; `dominates-all` is the first check and `is-first-max?` the second
+; it then points out we've introduces some inefficiency
+
+; version 3, rev b.
+(provide (contract-out [my-argmax
+                        (->i ([f (-> any/c real?)] [lov (and/c pair? list?)])
+                             ()
+                             (r (f lov)
+                                (lambda (r)
+                                  (define f@r (f r))
+                                  (define flov (map f lov))
+                                  (and (is-first-max? r f@r (map list lov flov))
+                                       (dominates-all f@r flov)))))]))
+
+; f@r is greater or equal to all f@v in flov
+(define (dominates-all f@r flov)
+  (for/and ([f@v flov])
+    (>= f@r f@v)))
+
+; r is (first x) for the first
+; x in lov+flov s.t. (= (second x) f@r)
+(define (is-first-max? r f@r lov+flov)
+  (define fst (first lov+flov))
+  (if (= (second fst) f@r)
+      (eq? (first fst) r)
+      (is-first-max? r f@r (rest lov+flov))))
+
+; The guide then goes through some explanation to point out
+; that argmax doesn't even need to call `f` for a singleton list.
+; Additionally, if `f` contains effects you'll see them twice because
+; of how contracts work. It generalizes the above contracts to properly
+; handle the singleton case.
+
+(my-argmax (λ (x) x) '(1 2 3))
+
+; Next https://docs.racket-lang.org/guide/contracts-struct.html

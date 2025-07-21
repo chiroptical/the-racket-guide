@@ -342,4 +342,80 @@
 
 (my-argmax (λ (x) x) '(1 2 3))
 
-; Next https://docs.racket-lang.org/guide/contracts-struct.html
+; Section 7.5
+
+(struct posn [x y])
+
+(define origin (posn 0 0))
+
+(provide (contract-out [origin (struct/c posn zero? zero?)]))
+
+(provide (contract-out (struct posn ((x number?) (y number?)))
+                       [p-okay posn?]
+                       [p-sick posn?]))
+
+(define p-okay (posn 10 20))
+(define p-sick (posn 'a 'b))
+
+; Note: internally, 'p-sick' would be totally fine from a contract perspective
+; if you simply used it as a constant. However, if you did `(posn-x p-sick)`
+; it would fail outside this module. This is because `posn-x` called outside
+; this module passes over the contract surface. We can prevent this by
+; being more specific about the types of `p-okay` and `p-sick`, i.e.
+; `[p-sick (struct/c posn number? number?)]`
+
+; Section 7.5.3
+
+; a binary search tree example
+(struct node (val left right))
+
+; determines if `n' is in the binary search tree `b',
+; exploiting the binary search tree invariant
+(define (in? n b)
+  (cond
+    [(null? b) #f]
+    [else
+     (cond
+       [(= n (node-val b)) #t]
+       [(< n (node-val b)) (in? n (node-left b))]
+       [(> n (node-val b)) (in? n (node-right b))])]))
+
+; a predicate that identifies binary search trees
+(define (bst-between? b low high)
+  (or (null? b)
+      (and (<= low (node-val b) high)
+           (bst-between? (node-left b) low (node-val b))
+           (bst-between? (node-right b) (node-val b) high))))
+
+(define (bst? b)
+  (bst-between? b -inf.0 +inf.0))
+
+(provide (struct-out node))
+(provide (contract-out [bst? (any/c . -> . boolean?)]
+                       ; [in? (number? bst? . -> . boolean?)]
+                       ))
+
+; in this iteration, bst-bst-between? searches through the whole tree
+; for every call to `in`, i.e. we lose the logarithmic complexity of
+; search in our contract!
+
+; bst-between : number number -> contract
+; builds a contract for binary search trees
+; whose values are between low and high
+(define (bst-between/c low high)
+  (or/c null?
+        (struct/dc node
+                   [val (between/c low high)]
+                   [left (val) #:lazy (bst-between/c low val)]
+                   [right (val) #:lazy (bst-between/c val high)])))
+
+(define bst/c (bst-between/c -inf.0 +inf.0))
+
+(provide (struct-out node))
+(provide (contract-out [bst/c contract?] [in? (number? bst/c . -> . boolean?)]))
+
+; Note: `define-opt/c` also exists and supposedly can speed up the body
+; of this function.
+; LOOKUP: How does it speed up the body of the contract?
+
+; Next: https://docs.racket-lang.org/guide/contracts-exists.html

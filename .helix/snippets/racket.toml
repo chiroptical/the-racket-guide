@@ -28,3 +28,8 @@ prefix = "ground"
 body = '⏚'
 description = "The ground unicode"
 
+[[snippets]]
+prefix = "exists"
+body = '∃'
+description = "The exists unicode"
+

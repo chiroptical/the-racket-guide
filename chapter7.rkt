@@ -418,4 +418,222 @@
 ; of this function.
 ; LOOKUP: How does it speed up the body of the contract?
 
-; Next: https://docs.racket-lang.org/guide/contracts-exists.html
+; Section 7.6
+
+(define empty '())
+(define (enq top queue)
+  (append queue (list top)))
+(define (next queue)
+  (car queue))
+(define (deq queue)
+  (cdr queue))
+(define (empty? queue)
+  (null? queue))
+
+; Since our queue is implemented in terms of lists ; our users could just use
+; car/cdr to manipulate the queue breaking the boundary. ∃ allows us to abstract
+; the representation of the queue and ensure consumers don't manipulate the
+; inner representation
+(provide (contract-out #:∃ queue
+                       [empty queue]
+                       [enq (-> integer? queue queue)]
+                       [next (-> queue integer?)]
+                       [deq (-> queue queue)]
+                       [empty? (-> queue boolean?)]))
+
+; Section 7.7, some example contracts in https://docs.racket-lang.org/guide/contracts-examples.html
+; Section 7.8, https://docs.racket-lang.org/guide/Building_New_Contracts.html
+
+; Project the integer, or fail (note, you shouldn't use error like this
+; but signal-contract-violation from the docs doesn't exist?)
+(define int-proj
+  (λ (x)
+    (if (integer? x)
+        x
+        (error))))
+
+; Project an arity 1 function, where the input and output
+; of the function are integers
+(define int->int-proj
+  (λ (f)
+    (if (and (procedure? f) (procedure-arity-includes? f 1))
+        (λ (x) (int-proj (f (int-proj x))))
+        (error))))
+
+; These projections have the right behavior, but they don't properly assign
+; blame or provide decent error messages
+
+(define (int-proj+ blame)
+  (λ (x)
+    (if (integer? x)
+        x
+        (raise-blame-error blame x '(expected: "<integer>" given: "~e") x))))
+
+; server - provides some value according to the contract
+; client - consumes the value according to the contract
+; server is called positive
+; client is called negative
+;
+; For, int-proj+, the only possible blame is the server
+; raise-blame-error always blames the server
+(define (int->int-proj+ blame)
+  ; blame the consumer
+  (define domain (int-proj+ (blame-swap blame)))
+
+  ; blame the server
+  (define range (int-proj+ blame))
+
+  (λ (f)
+    (if (and (procedure? f) (procedure-arity-includes? f 1))
+        (λ (x) (range (f (domain x))))
+        (raise-blame-error blame
+                           f
+                           '(expected "a procedure of one argument" given: "~e")
+                           f))))
+
+; TODO: trying to understand the server (+)/client (-) thing going on with domain and range
+
+(define (int->int-proj++ blame)
+  (define dom-blame (blame-add-context blame "the argument of" #:swap? #t))
+  (define rng-blame (blame-add-context blame "the range of"))
+  (define (check-int v to-blame neg-party)
+    (unless (integer? v)
+      (raise-blame-error to-blame
+                         #:missing-party neg-party
+                         v
+                         '(expected "an integer" given: "~e")
+                         v)))
+  (λ (f neg-party)
+    (if (and (procedure? f) (procedure-arity-includes? f 1))
+        (λ (x)
+          (check-int x dom-blame neg-party)
+          (define ans (f x))
+          (check-int ans rng-blame neg-party)
+          ans)
+        (raise-blame-error blame
+                           #:missing-party neg-party
+                           f
+                           '(expected "a procedure of one argument" given: "~e")
+                           f))))
+
+(define (int->int-proj-reuse blame)
+  (define dom-blame (blame-add-context blame "the argument of" #:swap? #t))
+  (define rng-blame (blame-add-context blame "the range of"))
+  (define (check-int v to-blame neg-party)
+    (unless (integer? v)
+      (raise-blame-error to-blame
+                         #:missing-party neg-party
+                         v
+                         '(expected "an integer" given: "~e")
+                         v)))
+  (λ (f neg-party)
+    (if (and (procedure? f) (procedure-arity-includes? f 1))
+        (chaperone-procedure f
+                             (λ (x)
+                               (check-int x dom-blame neg-party)
+                               (define ans (f x))
+                               (check-int ans rng-blame neg-party)
+                               ans))
+        (raise-blame-error blame
+                           #:missing-party neg-party
+                           f
+                           '(expected "a procedure of one argument" given: "~e")
+                           f))))
+
+(define int->int-contract
+  (make-contract #:name 'int->int #:late-neg-projection int->int-proj-reuse))
+
+(define/contract (h x)
+  int->int-contract
+  "not an int")
+
+(provide h)
+
+(struct simple-arrow (dom rng)
+  #:property prop:chaperone-contract
+  (build-chaperone-contract-property
+   #:name (lambda (arr) (simple-arrow-name arr))
+   #:late-neg-projection (lambda (arr) (simple-arrow-late-neg-proj arr))))
+
+(define (simple-arrow-contract dom rng)
+  (simple-arrow (coerce-contract 'simple-arrow-contract dom)
+                (coerce-contract 'simple-arrow-contract rng)))
+
+(define (simple-arrow-name arr)
+  `(-> ,(contract-name (simple-arrow-dom arr))
+       ,(contract-name (simple-arrow-rng arr))))
+
+(define (simple-arrow-late-neg-proj arr)
+  (define dom-ctc (get/build-late-neg-projection (simple-arrow-dom arr)))
+  (define rng-ctc (get/build-late-neg-projection (simple-arrow-rng arr)))
+  (λ (blame)
+    (define dom+blame
+      (dom-ctc (blame-add-context blame "the argument of" #:swap? #t)))
+    (define rng+blame (rng-ctc (blame-add-context blame "the range of")))
+    (λ (f neg-party)
+      (if (and (procedure? f) (procedure-arity-includes? f 1))
+          (chaperone-procedure f
+                               (λ (arg)
+                                 (values (λ (result)
+                                           (rng+blame result neg-party))
+                                         (dom+blame arg neg-party))))
+          (raise-blame-error
+           blame
+           #:missing-party neg-party
+           f
+           '(expected "a procedure of one argument" given: "~e")
+           f)))))
+
+(define/contract (k _x)
+  (simple-arrow-contract integer? boolean?)
+  "not a boolean")
+
+(provide k)
+
+; Section 7.8.2 is about property testing contracts.
+; I skipped it because I've not written enough of these to feel confident
+; about the code I'm reading.
+
+; 7.9: Gotchas
+
+; eq? is a contract designed to be fast and doesn't interact well with other contracts
+
+(define (make-adder x)
+  (if (= 1 x)
+      add1
+      (lambda (y) (+ x y))))
+(provide (contract-out [make-adder (-> number? (-> number? number?))]))
+
+; > (eq? (make-adder 1) (make-adder 1))
+; #f
+
+; i.e. don't use `eq?` on values that have contracts
+
+(define/contract (a x)
+  (-> integer? integer?)
+  x)
+
+(define/contract (b)
+  (-> string?)
+  (a "not an integer"))
+
+; (b) ; blames a, not b
+; if you want it to blame b, you need to change to
+(define/contract (c)
+  (-> string?)
+  #:freevar a
+  (-> integer? integer?)
+  (a "not an integer"))
+; (c) ; blames c
+; either use freevar or separate modules with contracts at the boundaries
+
+; Do not use predicates on #:∃ contracts
+; Changing from #:∃ to any/c can change the meaning of contracts
+
+; recursive contracts need to be defined with `recursive-contract`, e.g.
+
+(define stream/c
+  (promise/c (or/c null? (cons/c number? (recursive-contract stream/c)))))
+
+; Mixing `contract-out` and `set!` can lead to odd behavior
+; Ensure to export accessor functions for module values

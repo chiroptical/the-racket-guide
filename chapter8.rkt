@@ -43,3 +43,35 @@
 (read-line in)
 
 ; Section 8.2 https://docs.racket-lang.org/guide/default-ports.html
+
+(define (swing-hammer)
+  (display "Ouch!" (current-error-port)))
+
+(swing-hammer) ; Ouch! to error port
+
+; you can use parametrize to change the behavior, e.g.
+
+(let ([s (open-output-string)])
+  (parameterize ([current-error-port
+                  s]) ; parameterize the error port as an output string port
+    (swing-hammer)
+    (swing-hammer)
+    (swing-hammer))
+  (get-output-string s)) ; Ouch!Ouch!Ouch! to current-output-port as string
+
+; print - expression layer Racket syntax view
+; write - reader layer, i.e. write followed by read often works
+; display - character layer
+; Sometimes all three are the same, more often not
+(define (deliver who when what)
+  (printf "Items ~a for shopper ~s: ~v" who when what))
+; ~a display
+; ~s write
+; ~v print
+(deliver '("list") '("John") '("milk"))
+
+(define-values (pipe-in pipe-out) (make-pipe))
+(write "hello" pipe-out)
+(read pipe-in)
+
+; Section 8.4 https://docs.racket-lang.org/guide/serialization.html

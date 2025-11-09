@@ -75,3 +75,29 @@
 (read pipe-in)
 
 ; Section 8.4 https://docs.racket-lang.org/guide/serialization.html
+
+; default structs will not serialize and deserialize over a pipe
+
+(struct posn (x y) #:transparent)
+
+(write (posn 1 2)) ; #(struct:posn 1 2)
+
+(define-values (in- out-) (make-pipe))
+
+(write (posn 1 2) out-)
+
+(define v (read in-))
+
+(write (posn? v)) ; false
+(write (vector? v)) ; true
+
+(require racket/serialize)
+
+(serializable-struct posn- (x y) #:transparent)
+(deserialize (serialize (posn- 1 2)))
+
+(define-values (-in -out) (make-pipe))
+(write (serialize (posn- 1 2)) -out)
+(deserialize (read -in)) ; this works fine!
+
+; Section 8.5 https://docs.racket-lang.org/guide/encodings.html

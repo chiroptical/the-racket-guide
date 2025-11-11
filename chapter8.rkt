@@ -101,3 +101,8 @@
 (deserialize (read -in)) ; this works fine!
 
 ; Section 8.5 https://docs.racket-lang.org/guide/encodings.html
+; Note functions like `read-char` and `read-byte` exists
+; The char operations always use UTF8 encoding, you'll
+; need `reencode-input-port` to change it into UTF8
+
+;`racket/port` has `port->string` which can exhaust a files contents
